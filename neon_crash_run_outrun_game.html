@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Crash Run - HTML Crash Game</title>
+  <style>
+    :root {
+      --bg: #080015;
+      --purple: #3b0d72;
+      --pink: #ff2bd6;
+      --cyan: #26f8ff;
+      --orange: #ff9d28;
+      --yellow: #fff16a;
+      --panel: rgba(10, 3, 25, 0.86);
+      --text: #fff7ff;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at 50% 20%, rgba(255,43,214,.22), transparent 28%),
+        linear-gradient(#080015 0%, #160029 42%, #090014 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .game-wrap {
+      width: min(980px, 96vw);
+      height: min(720px, 96vh);
+      position: relative;
+      border: 3px solid rgba(38,248,255,.7);
+      border-radius: 24px;
+      overflow: hidden;
+      background: #060010;
+      box-shadow:
+        0 0 30px rgba(38,248,255,.45),
+        0 0 70px rgba(255,43,214,.28),
+        inset 0 0 35px rgba(255,43,214,.18);
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .hud {
+      position: absolute;
+      inset: 16px 16px auto 16px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.035));
+      border: 1px solid rgba(38,248,255,.35);
+      border-radius: 14px;
+      padding: 10px 12px;
+      box-shadow: inset 0 0 18px rgba(0,0,0,.24), 0 0 16px rgba(38,248,255,.12);
+      backdrop-filter: blur(4px);
+    }
+
+    .label {
+      font-size: .72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #b9fbff;
+      opacity: .85;
+    }
+
+    .value {
+      font-size: clamp(1rem, 3vw, 1.55rem);
+      font-weight: 950;
+      color: white;
+      text-shadow: 0 0 12px rgba(255,43,214,.75);
+    }
+
+    .center-panel {
+      position: absolute;
+      left: 50%;
+      top: 52%;
+      transform: translate(-50%, -50%);
+      width: min(560px, 88vw);
+      z-index: 7;
+      text-align: center;
+      padding: 26px;
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.13), rgba(255,255,255,.04)),
+        rgba(8,0,21,.88);
+      border: 2px solid rgba(255,43,214,.65);
+      box-shadow: 0 0 35px rgba(255,43,214,.45), inset 0 0 24px rgba(38,248,255,.12);
+    }
+
+    .hidden { display: none; }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2.1rem, 7vw, 4.8rem);
+      line-height: .92;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--yellow);
+      text-shadow:
+        0 0 10px var(--yellow),
+        0 0 24px var(--pink),
+        5px 5px 0 #74128a;
+    }
+
+    .tag {
+      color: #ffc4f5;
+      margin: 0 0 18px;
+      font-weight: 750;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      padding: 15px 16px;
+      border-radius: 14px;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #13001b;
+      background: linear-gradient(180deg, #fff16a, #ff9d28 50%, #ff4d00);
+      box-shadow:
+        0 7px 0 #7d2500,
+        0 0 20px rgba(255,157,40,.35),
+        inset 0 1px 0 rgba(255,255,255,.75);
+      transition: transform .08s ease, box-shadow .08s ease, opacity .18s ease;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:active {
+      transform: translateY(5px);
+      box-shadow:
+        0 2px 0 #7d2500,
+        0 0 18px rgba(255,157,40,.25),
+        inset 0 1px 0 rgba(255,255,255,.75);
+    }
+
+    .cashout {
+      background: linear-gradient(180deg, #92ffff, #26f8ff 52%, #007d96);
+      box-shadow:
+        0 7px 0 #00414f,
+        0 0 20px rgba(38,248,255,.45),
+        inset 0 1px 0 rgba(255,255,255,.75);
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .bet-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    input {
+      width: 120px;
+      font-size: 1.1rem;
+      text-align: center;
+      color: white;
+      background: rgba(0,0,0,.42);
+      border: 1px solid rgba(38,248,255,.5);
+      border-radius: 12px;
+      padding: 12px;
+      outline: none;
+      box-shadow: inset 0 0 12px rgba(38,248,255,.15);
+    }
+
+    .notice {
+      min-height: 30px;
+      margin-top: 14px;
+      color: #fff5b1;
+      font-weight: 850;
+    }
+
+    .keys {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 14px;
+      z-index: 6;
+      text-align: center;
+      font-size: .9rem;
+      color: rgba(255,255,255,.76);
+      text-shadow: 0 0 8px rgba(0,0,0,.85);
+      pointer-events: none;
+    }
+
+    .scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 8;
+      opacity: .13;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.28) 0 1px,
+        transparent 1px 4px
+      );
+      mix-blend-mode: screen;
+    }
+
+    @media (max-width: 760px) {
+      .hud {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .card:last-child {
+        grid-column: span 2;
+      }
+      .controls {
+        grid-template-columns: 1fr;
+      }
+      .center-panel {
+        top: 55%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="game-wrap">
+    <canvas id="game" width="980" height="720"></canvas>
+
+    <section class="hud">
+      <div class="card">
+        <div class="label">Credits</div>
+        <div class="value" id="credits">1000</div>
+      </div>
+      <div class="card">
+        <div class="label">Bet</div>
+        <div class="value" id="betView">50</div>
+      </div>
+      <div class="card">
+        <div class="label">Multiplier</div>
+        <div class="value" id="multiplier">1.00x</div>
+      </div>
+      <div class="card">
+        <div class="label">Potential</div>
+        <div class="value" id="potential">0</div>
+      </div>
+      <div class="card">
+        <div class="label">Best</div>
+        <div class="value" id="best">1.00x</div>
+      </div>
+    </section>
+
+    <section class="center-panel" id="menu">
+      <h1>Neon Crash Run</h1>
+      <p class="tag">Outrun-inspired crash game. Swerve through traffic, cash out before you smash.</p>
+
+      <div class="bet-row">
+        <button id="betMinus">-</button>
+        <input id="betInput" type="number" min="10" max="500" step="10" value="50" />
+        <button id="betPlus">+</button>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn">Start Run</button>
+        <button class="cashout" id="cashBtn" disabled>Cash Out</button>
+      </div>
+
+      <div class="notice" id="notice">Use ← → / A D to dodge. Space or Enter starts.</div>
+    </section>
+
+    <div class="keys">← → or A D to steer · SPACE to start · C to cash out · R to reset</div>
+    <div class="scanlines"></div>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    ctx.imageSmoothingEnabled = false;
+
+    const creditsEl = document.getElementById("credits");
+    const betViewEl = document.getElementById("betView");
+    const multiplierEl = document.getElementById("multiplier");
+    const potentialEl = document.getElementById("potential");
+    const bestEl = document.getElementById("best");
+    const menuEl = document.getElementById("menu");
+    const noticeEl = document.getElementById("notice");
+    const startBtn = document.getElementById("startBtn");
+    const cashBtn = document.getElementById("cashBtn");
+    const betInput = document.getElementById("betInput");
+    const betMinus = document.getElementById("betMinus");
+    const betPlus = document.getElementById("betPlus");
+
+    const W = canvas.width;
+    const H = canvas.height;
+
+    const road = {
+      topY: 260,
+      bottomY: H + 80,
+      centerX: W / 2,
+      topWidth: 170,
+      bottomWidth: 760
+    };
+
+    const player = {
+      x: 0,
+      lane: 1,
+      y: 595,
+      w: 96,
+      h: 58,
+      targetX: 0
+    };
+
+    let keys = {};
+    let traffic = [];
+    let particles = [];
+    let stars = [];
+    let palms = [];
+    let state = "ready";
+    let credits = 1000;
+    let bet = 50;
+    let multiplier = 1;
+    let best = 1;
+    let speed = 1;
+    let time = 0;
+    let spawnTimer = 0;
+    let roadOffset = 0;
+    let cashedThisRound = false;
+    let lastMessageTimer = 0;
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function rand(min, max) {
+      return Math.random() * (max - min) + min;
+    }
+
+    function laneX(lane, y) {
+      const t = (y - road.topY) / (road.bottomY - road.topY);
+      const width = lerp(road.topWidth, road.bottomWidth, t);
+      const left = road.centerX - width / 2;
+      const laneWidth = width / 3;
+      return left + laneWidth * (lane + 0.5);
+    }
+
+    function roadWidthAt(y) {
+      const t = (y - road.topY) / (road.bottomY - road.topY);
+      return lerp(road.topWidth, road.bottomWidth, t);
+    }
+
+    function updateHud() {
+      creditsEl.textContent = Math.floor(credits);
+      betViewEl.textContent = bet;
+      multiplierEl.textContent = multiplier.toFixed(2) + "x";
+      potentialEl.textContent = state === "running" ? Math.floor(bet * multiplier) : 0;
+      bestEl.textContent = best.toFixed(2) + "x";
+      cashBtn.disabled = state !== "running" || cashedThisRound;
+      startBtn.disabled = state === "running" || credits < bet;
+      betInput.disabled = state === "running";
+      betMinus.disabled = state === "running";
+      betPlus.disabled = state === "running";
+    }
+
+    function setNotice(text, duration = 1600) {
+      noticeEl.textContent = text;
+      lastMessageTimer = duration;
+    }
+
+    function makeStars() {
+      stars = [];
+      for (let i = 0; i < 180; i++) {
+        stars.push({
+          x: rand(0, W),
+          y: rand(0, road.topY - 20),
+          s: Math.random() > .86 ? 2 : 1,
+          tw: rand(0, Math.PI * 2)
+        });
+      }
+    }
+
+    function makePalms() {
+      palms = [];
+      for (let i = 0; i < 24; i++) {
+        palms.push({
+          side: Math.random() > .5 ? 1 : -1,
+          y: rand(road.topY, H + 100),
+          offset: rand(30, 170)
+        });
+      }
+    }
+
+    function pixelRect(x, y, w, h, color) {
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    }
+
+    function drawSky() {
+      const grad = ctx.createLinearGradient(0, 0, 0, H);
+      grad.addColorStop(0, "#070018");
+      grad.addColorStop(.45, "#21003b");
+      grad.addColorStop(1, "#090012");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, W, H);
+
+      for (const st of stars) {
+        const glow = .45 + Math.sin(time * 2 + st.tw) * .35;
+        ctx.fillStyle = `rgba(255,255,255,${glow})`;
+        ctx.fillRect(st.x, st.y, st.s, st.s);
+      }
+
+      const sunX = W / 2;
+      const sunY = 175;
+      const sunR = 94;
+      const sunGrad = ctx.createRadialGradient(sunX, sunY, 8, sunX, sunY, sunR);
+      sunGrad.addColorStop(0, "#fff16a");
+      sunGrad.addColorStop(.38, "#ff9d28");
+      sunGrad.addColorStop(.72, "#ff2bd6");
+      sunGrad.addColorStop(1, "rgba(255,43,214,0)");
+      ctx.fillStyle = sunGrad;
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+      ctx.clip();
+      for (let y = sunY - 65; y < sunY + sunR; y += 16) {
+        ctx.fillStyle = "#21003b";
+        ctx.fillRect(sunX - sunR, y + Math.sin(y * .05 + time) * 4, sunR * 2, 7);
+      }
+      ctx.restore();
+
+      ctx.strokeStyle = "rgba(38,248,255,.55)";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < 18; i++) {
+        const y = road.topY + i * i * 2.4 + (roadOffset % 28);
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+
+      for (let i = -10; i <= 10; i++) {
+        const x = W / 2 + i * 58;
+        ctx.strokeStyle = "rgba(255,43,214,.35)";
+        ctx.beginPath();
+        ctx.moveTo(W / 2, road.topY);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+
+      drawMountains();
+    }
+
+    function drawMountains() {
+      ctx.fillStyle = "#110020";
+      ctx.beginPath();
+      ctx.moveTo(0, road.topY);
+      for (let x = 0; x <= W; x += 70) {
+        const y = 235 + Math.sin(x * .02) * 28 + Math.cos(x * .012) * 24;
+        ctx.lineTo(x, y);
+      }
+      ctx.lineTo(W, H);
+      ctx.lineTo(0, H);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,43,214,.45)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, road.topY);
+      for (let x = 0; x <= W; x += 70) {
+        const y = 235 + Math.sin(x * .02) * 28 + Math.cos(x * .012) * 24;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    function drawRoad() {
+      const leftBottom = road.centerX - road.bottomWidth / 2;
+      const rightBottom = road.centerX + road.bottomWidth / 2;
+      const leftTop = road.centerX - road.topWidth / 2;
+      const rightTop = road.centerX + road.topWidth / 2;
+
+      ctx.fillStyle = "#10071f";
+      ctx.beginPath();
+      ctx.moveTo(leftTop, road.topY);
+      ctx.lineTo(rightTop, road.topY);
+      ctx.lineTo(rightBottom, road.bottomY);
+      ctx.lineTo(leftBottom, road.bottomY);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = "#26f8ff";
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(leftTop, road.topY);
+      ctx.lineTo(leftBottom, road.bottomY);
+      ctx.moveTo(rightTop, road.topY);
+      ctx.lineTo(rightBottom, road.bottomY);
+      ctx.stroke();
+
+      for (let lane = 1; lane <= 2; lane++) {
+        ctx.strokeStyle = "rgba(255,241,106,.75)";
+        ctx.lineWidth = 4;
+        ctx.setLineDash([22, 28]);
+        ctx.lineDashOffset = -roadOffset * 2;
+        ctx.beginPath();
+
+        for (let y = road.topY; y <= road.bottomY; y += 12) {
+          const t = (y - road.topY) / (road.bottomY - road.topY);
+          const width = lerp(road.topWidth, road.bottomWidth, t);
+          const left = road.centerX - width / 2;
+          const x = left + width * lane / 3;
+          if (y === road.topY) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+
+      for (const p of palms) drawPalm(p);
+    }
+
+    function drawPalm(p) {
+      const width = roadWidthAt(p.y);
+      const roadEdge = p.side < 0 ? road.centerX - width / 2 : road.centerX + width / 2;
+      const x = roadEdge + p.side * p.offset;
+      const scale = clamp((p.y - road.topY) / (H - road.topY), .18, 1.4);
+
+      ctx.save();
+      ctx.translate(x, p.y);
+      ctx.scale(scale * p.side, scale);
+
+      pixelRect(-4, -60, 8, 60, "#351624");
+      pixelRect(-8, -20, 16, 12, "#5b2332");
+      ctx.fillStyle = "#18ff98";
+      for (let i = 0; i < 6; i++) {
+        ctx.save();
+        ctx.rotate((i - 2.5) * .48);
+        ctx.fillRect(0, -66, 48, 10);
+        ctx.restore();
+      }
+      ctx.restore();
+    }
+
+    function drawPixelCar(x, y, scale, color, isPlayer = false) {
+      ctx.save();
+      ctx.translate(Math.round(x), Math.round(y));
+      ctx.scale(scale, scale);
+
+      const dark = isPlayer ? "#5f0009" : "#141420";
+      const mid = color;
+      const light = isPlayer ? "#ff5648" : "#7dfcff";
+      const glass = isPlayer ? "#8cf8ff" : "#ffb6f7";
+
+      // Low, wide wedge body inspired by 1980s Italian supercars. No logos or badges.
+      pixelRect(-42, 6, 84, 18, dark);
+      pixelRect(-50, 16, 100, 18, mid);
+      pixelRect(-40, 0, 80, 12, mid);
+      pixelRect(-30, -12, 60, 16, mid);
+      pixelRect(-22, -20, 44, 14, glass);
+      pixelRect(-34, -8, 16, 10, light);
+      pixelRect(18, -8, 16, 10, light);
+
+      // Side intake strakes / Testarossa-like pixel detail.
+      pixelRect(-48, 22, 18, 3, "#ffe1d4");
+      pixelRect(-48, 28, 18, 3, "#ffe1d4");
+      pixelRect(30, 22, 18, 3, "#ffe1d4");
+      pixelRect(30, 28, 18, 3, "#ffe1d4");
+
+      // Wheels
+      pixelRect(-42, 30, 20, 12, "#08080c");
+      pixelRect(22, 30, 20, 12, "#08080c");
+      pixelRect(-37, 32, 10, 6, "#b4b4c8");
+      pixelRect(27, 32, 10, 6, "#b4b4c8");
+
+      // Lights
+      pixelRect(-38, 15, 12, 4, "#fff16a");
+      pixelRect(26, 15, 12, 4, "#fff16a");
+      pixelRect(-28, 36, 20, 6, "#ff2bd6");
+      pixelRect(8, 36, 20, 6, "#ff2bd6");
+
+      if (isPlayer && state === "running") {
+        pixelRect(-28, 45, 18, 18, "#ff9d28");
+        pixelRect(10, 45, 18, 18, "#ff9d28");
+        pixelRect(-22, 58, 8, 16, "#fff16a");
+        pixelRect(16, 58, 8, 16, "#fff16a");
+      }
+
+      ctx.restore();
+    }
+
+    function drawTrafficCar(car) {
+      const perspective = clamp((car.y - road.topY) / (H - road.topY), .15, 1.1);
+      const x = laneX(car.lane, car.y);
+      drawPixelCar(x, car.y, perspective * .85, car.color, false);
+    }
+
+    function spawnTraffic() {
+      const occupied = traffic
+        .filter(c => c.y < road.topY + 120)
+        .map(c => c.lane);
+
+      let lane = Math.floor(rand(0, 3));
+      if (occupied.includes(lane)) lane = (lane + 1 + Math.floor(rand(0, 2))) % 3;
+
+      traffic.push({
+        lane,
+        y: road.topY - 30,
+        color: ["#26f8ff", "#fff16a", "#ff2bd6", "#a7ff35", "#ff8d36"][Math.floor(rand(0, 5))]
+      });
+    }
+
+    function rectsOverlap(a, b) {
+      return !(
+        a.x + a.w / 2 < b.x - b.w / 2 ||
+        a.x - a.w / 2 > b.x + b.w / 2 ||
+        a.y + a.h / 2 < b.y - b.h / 2 ||
+        a.y - a.h / 2 > b.y + b.h / 2
+      );
+    }
+
+    function checkCrash() {
+      const playerBox = { x: player.x, y: player.y + 12, w: 78, h: 46 };
+
+      for (const car of traffic) {
+        const p = clamp((car.y - road.topY) / (H - road.topY), .15, 1.1);
+        const box = {
+          x: laneX(car.lane, car.y),
+          y: car.y + 12,
+          w: 78 * p,
+          h: 48 * p
+        };
+
+        if (rectsOverlap(playerBox, box)) {
+          crash(playerBox.x, playerBox.y);
+          return;
+        }
+      }
+    }
+
+    function crash(x, y) {
+      state = "crashed";
+      cashBtn.disabled = true;
+      cashedThisRound = true;
+      multiplierEl.textContent = "CRASH";
+      potentialEl.textContent = "0";
+      setNotice("CRASHED! You lost the bet.", 999999);
+
+      for (let i = 0; i < 80; i++) {
+        particles.push({
+          x,
+          y,
+          vx: rand(-8, 8),
+          vy: rand(-9, 4),
+          life: rand(35, 75),
+          color: ["#ff2bd6", "#26f8ff", "#fff16a", "#ff4d00", "#ffffff"][Math.floor(rand(0, 5))]
+        });
+      }
+
+      setTimeout(() => {
+        if (state === "crashed") {
+          state = "ready";
+          menuEl.classList.remove("hidden");
+          startBtn.textContent = credits >= bet ? "Start Run" : "Reset Credits";
+          updateHud();
+        }
+      }, 900);
+    }
+
+    function startGame() {
+      bet = clamp(Math.floor(Number(betInput.value) || 50), 10, 500);
+      bet = Math.ceil(bet / 10) * 10;
+      betInput.value = bet;
+
+      if (credits < bet) {
+        credits = 1000;
+        setNotice("Credits reset. Start when ready.");
+        updateHud();
+        return;
+      }
+
+      credits -= bet;
+      multiplier = 1;
+      speed = 1;
+      time = 0;
+      spawnTimer = 0;
+      traffic = [];
+      particles = [];
+      player.lane = 1;
+      player.x = laneX(player.lane, player.y);
+      player.targetX = player.x;
+      state = "running";
+      cashedThisRound = false;
+      menuEl.classList.add("hidden");
+      setNotice("Run started. Cash out before the crash!");
+      updateHud();
+    }
+
+    function cashOut() {
+      if (state !== "running" || cashedThisRound) return;
+      const payout = Math.floor(bet * multiplier);
+      credits += payout;
+      best = Math.max(best, multiplier);
+      cashedThisRound = true;
+      state = "cashed";
+      setNotice(`Cashed out at ${multiplier.toFixed(2)}x for ${payout} credits!`, 999999);
+
+      for (let i = 0; i < 40; i++) {
+        particles.push({
+          x: player.x,
+          y: player.y,
+          vx: rand(-5, 5),
+          vy: rand(-7, 2),
+          life: rand(30, 65),
+          color: ["#26f8ff", "#fff16a", "#ffffff"][Math.floor(rand(0, 3))]
+        });
+      }
+
+      setTimeout(() => {
+        if (state === "cashed") {
+          state = "ready";
+          menuEl.classList.remove("hidden");
+          startBtn.textContent = "Start Run";
+          updateHud();
+        }
+      }, 750);
+      updateHud();
+    }
+
+    function resetAll() {
+      credits = 1000;
+      bet = 50;
+      betInput.value = 50;
+      multiplier = 1;
+      best = 1;
+      traffic = [];
+      particles = [];
+      state = "ready";
+      menuEl.classList.remove("hidden");
+      startBtn.textContent = "Start Run";
+      setNotice("Reset complete. Ready to run.");
+      updateHud();
+    }
+
+    function update(dt) {
+      time += dt;
+      roadOffset += (8 + speed * 10) * dt * 60;
+
+      for (const p of palms) {
+        p.y += (2.6 + speed * 2.1) * dt * 60;
+        if (p.y > H + 120) {
+          p.y = road.topY - rand(20, 80);
+          p.side = Math.random() > .5 ? 1 : -1;
+          p.offset = rand(30, 170);
+        }
+      }
+
+      if (state === "running") {
+        if (keys.ArrowLeft || keys.KeyA) player.lane -= 0.085;
+        if (keys.ArrowRight || keys.KeyD) player.lane += 0.085;
+        player.lane = clamp(player.lane, 0, 2);
+        player.targetX = laneX(player.lane, player.y);
+        player.x = lerp(player.x, player.targetX, 0.22);
+
+        multiplier += dt * (0.19 + multiplier * 0.045);
+        speed += dt * 0.08;
+
+        spawnTimer -= dt;
+        if (spawnTimer <= 0) {
+          spawnTraffic();
+          spawnTimer = clamp(1.05 - speed * .08 - multiplier * .035, .32, 1.05);
+        }
+
+        for (const car of traffic) {
+          car.y += (3.0 + speed * 2.6 + multiplier * .42) * dt * 60;
+        }
+
+        traffic = traffic.filter(car => car.y < H + 120);
+        checkCrash();
+        updateHud();
+      }
+
+      for (const part of particles) {
+        part.x += part.vx;
+        part.y += part.vy;
+        part.vy += .25;
+        part.life--;
+      }
+      particles = particles.filter(part => part.life > 0);
+
+      if (lastMessageTimer > 0) {
+        lastMessageTimer -= dt * 1000;
+        if (lastMessageTimer <= 0 && state === "running") {
+          noticeEl.textContent = "C to cash out · dodge the traffic";
+        }
+      }
+    }
+
+    function drawParticles() {
+      for (const part of particles) {
+        ctx.globalAlpha = clamp(part.life / 60, 0, 1);
+        pixelRect(part.x, part.y, 5, 5, part.color);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, W, H);
+      drawSky();
+      drawRoad();
+
+      for (const car of traffic) drawTrafficCar(car);
+
+      if (state !== "crashed") {
+        drawPixelCar(player.x, player.y, 1, "#e91521", true);
+      }
+
+      drawParticles();
+
+      if (state === "running") {
+        ctx.font = "900 76px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(255,255,255,.08)";
+        ctx.fillText(multiplier.toFixed(2) + "x", W / 2, 178);
+        ctx.strokeStyle = "rgba(38,248,255,.35)";
+        ctx.lineWidth = 2;
+        ctx.strokeText(multiplier.toFixed(2) + "x", W / 2, 178);
+      }
+
+      if (state === "crashed") {
+        ctx.font = "950 86px system-ui";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#ff2bd6";
+        ctx.shadowColor = "#ff2bd6";
+        ctx.shadowBlur = 24;
+        ctx.fillText("CRASH!", W / 2, H / 2);
+        ctx.shadowBlur = 0;
+      }
+    }
+
+    let last = performance.now();
+    function loop(now) {
+      const dt = Math.min((now - last) / 1000, .033);
+      last = now;
+      update(dt);
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener("click", startGame);
+    cashBtn.addEventListener("click", cashOut);
+    betMinus.addEventListener("click", () => {
+      betInput.value = clamp(Number(betInput.value) - 10, 10, 500);
+      bet = Number(betInput.value);
+      updateHud();
+    });
+    betPlus.addEventListener("click", () => {
+      betInput.value = clamp(Number(betInput.value) + 10, 10, 500);
+      bet = Number(betInput.value);
+      updateHud();
+    });
+    betInput.addEventListener("input", () => {
+      bet = clamp(Math.floor(Number(betInput.value) || 10), 10, 500);
+      updateHud();
+    });
+
+    document.addEventListener("keydown", e => {
+      keys[e.code] = true;
+      if ((e.code === "Space" || e.code === "Enter") && state !== "running") {
+        e.preventDefault();
+        startGame();
+      }
+      if (e.code === "KeyC") cashOut();
+      if (e.code === "KeyR") resetAll();
+    });
+
+    document.addEventListener("keyup", e => {
+      keys[e.code] = false;
+    });
+
+    makeStars();
+    makePalms();
+    player.x = laneX(player.lane, player.y);
+    player.targetX = player.x;
+    updateHud();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
